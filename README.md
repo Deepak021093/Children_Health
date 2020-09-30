@@ -1,3 +1,3 @@
-### This project is based on my Masters Thesis
+### This dataset was used to provide my Masters Thesis.
 
-### The dataset consists of various fields in Longitudinal format
+### The dataset consists of various fields in Longitudinal format.

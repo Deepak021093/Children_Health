@@ -1,0 +1,450 @@
+---
+title: "ST 606: Cluster Analysis of Childrens Pulse rates"
+author: "Deepak Kumar Yuvanesan 19250419"
+date: "`r format(Sys.time(), '%X %d %B, %Y')`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(matrixStats)
+library(kml)
+library(cowplot)
+library(kableExtra)
+library(kml3d)
+library(fpc)
+library(naniar)
+library(longitudinal)
+library(DendSer)
+library(pheatmap)
+library(cluster)
+library(fpc)
+library(GGally)
+library(randomForest)
+library(lme4)
+library(plotly)
+library(dendextend)
+library(factoextra)
+library(HSAUR)
+library(readxl)
+library(gridExtra)
+library(tibble)
+library(tidyr)
+library(lavaan)
+options(pillar.sigfig = 10)
+options(warn=-1)
+library(ggplot2)
+#setwd("E:/Studies/ST606_Project")
+#setwd("~/SharedFiles/ST606/2020/data/Exercise")
+#projall<-read_excel("fit_database_anthropometric_all.xlsx") 
+#projall<-read_excel("fit_database_anthropometric_all.xlsx") 
+projnorm<- read.csv("fit_database_exercise_normal.csv")
+
+names(projnorm) <- c("ID", "measurementdate", "age", "agebin", "gender", "height", "weight" , "BMI", 
+"zscore", "zcategory", "rundistance", "runtime","runspeed", "pulse0","pulse1", "pulse5", "pulse10",
+"SBP0","SBP1" , "SBP5", "SBP10","DBP0", "DBP1", "DBP5", "DBP10")
+
+projnorm1<- projnorm
+```
+
+
+##### Hierarchichal clustering: Output for Age 6 to 10
+
+```{r echo=FALSE, fig.align='center', fig.height=5, fig.width=7}
+
+projnormp04<-projnorm1[,c(1,4,5,14)]
+#head(projnormp04)
+projnormp041<-projnormp04 %>% group_by(ID,gender, agebin) %>% summarise(pulse0new = mean(pulse0))
+#head(projnorm41)
+projnormp042<-spread(projnormp041, key = agebin, value = pulse0new)
+projnormp043<-data.frame(column_to_rownames(projnormp042, var = "ID"))
+
+projnormp044<-data.frame(projnormp042) %>% select(ID,gender,X6,X7,X8,X9,X10) %>%  filter(!is.na(X6) & !is.na(X7) & !is.na(X8) &!is.na(X9) &!is.na(X10))
+
+projnormp044m <- projnormp044 %>% filter(gender == "boy")
+projnormp044f <- projnormp044 %>% filter(gender == "girl")
+#head(projnormp044)
+
+dp0m <- dist(projnormp044m[,c(-1,-2)], "euclidean")
+hp0m <- hclust(dp0m, "average")
+dp01m <- as.dendrogram(hp0m)
+dp02m <- color_branches(dp01m,k=3, col=c(4,5,6))
+#plot(dp02)
+
+labl.Avep01m <- cutree(hp0m,3)
+projnormp044m$cluster <- factor(labl.Avep01m)
+
+pp01m <- ggparcoord(data = projnormp044m, columns = c(3:7), scale="globalminmax") + facet_wrap(~cluster)+labs(x= "Age", y="Pulse0")
+
+dp0f <- dist(projnormp044f[,c(-1,-2)], "euclidean")
+hp0f <- hclust(dp0f, "average")
+dp01f <- as.dendrogram(hp0f)
+dp02f <- color_branches(dp01f,k=3, col=c(4,5,6))
+#plot(dp02)
+
+labl.Avep01f <- cutree(hp0f,3)
+projnormp044f$cluster <- factor(labl.Avep01f)
+
+pp01f <- ggparcoord(data = projnormp044f, columns = c(3:7), scale="globalminmax") + facet_wrap(~cluster)+labs(x= "Age", y="Pulse0")
+
+grid.arrange(pp01m,pp01f)
+
+
+kable(cbind(table(cutree(hp0m,3)), table(cutree(hp0f,3))), col.names = c("Number of boys" , "Number of girls"), row.names = TRUE, booktabs=TRUE,linesep="",caption="Number of kids in each cluster(Pulse0: Age 6 - 10)\\label{tbl:tbl21}") %>% kable_styling(latex_options=c("HOLD_position"))
+
+```
+
+
+
+```{r eval=FALSE, fig.align='center', fig.cap=" Hierarchichal Clustering: Outliers \\label{fig:img7}", fig.height=5, fig.pos="h", fig.width=9, include=FALSE}
+
+boysout<- projnormp044m %>% filter((cluster == "2") | (cluster == "3")) %>% select(ID,cluster)
+
+girlsout<-projnormp044f %>% filter((cluster == "2") | (cluster == "3")) %>% select(ID,cluster)
+
+projnorm1 %>% filter(ID == boysout$ID)
+
+
+```
+
+##### Hierarchichal clustering: Output for Age 11 to 18
+
+```{r echo=FALSE, fig.align='center', fig.height=5, fig.width=9}
+projnormp045<-projnormp043 %>% select(gender,X11,X12,X13,X14,X15,X16,X17,X18) %>% filter(!is.na(X11) & !is.na(X12) & !is.na(X13) &!is.na(X14) &!is.na(X15) &!is.na(X16) &!is.na(X17) &!is.na(X18))
+
+projnormp045m <- projnormp045 %>% filter(gender == "boy")
+projnormp045f <- projnormp045 %>% filter(gender == "girl")
+
+ddp0m <- dist(projnormp045m[,c(-1,-2)], "euclidean")
+hhp0m <- hclust(ddp0m, "average")
+ddp01m <- as.dendrogram(hhp0m)
+ddp02m <- color_branches(ddp01m,k=3, col=c(4,5,6))
+#plot(dp02)
+
+labl.Avep02m <- cutree(hhp0m,3)
+projnormp045m$cluster <- factor(labl.Avep02m)
+
+pp02m <- ggparcoord(data = projnormp045m, columns = c(3:7), scale="globalminmax") + facet_wrap(~cluster)+labs(x= "Age", y="Pulse0")
+
+ddp0f <- dist(projnormp045f[,c(-1,-2)], "euclidean")
+hhp0f <- hclust(ddp0f, "average")
+ddp01f <- as.dendrogram(hhp0f)
+ddp02f <- color_branches(ddp01f,k=3, col=c(4,5,6))
+#plot(dp02)
+
+labl.Avep02f <- cutree(hhp0f,3)
+projnormp045f$cluster <- factor(labl.Avep02f)
+
+pp02f <- ggparcoord(data = projnormp045f, columns = c(3:7), scale="globalminmax") + facet_wrap(~cluster)+labs(x= "Age", y="Pulse0")
+
+grid.arrange(pp02m,pp02f)
+
+kable(cbind(table(cutree(hhp0m,3)), table(cutree(hhp0f,3))), col.names = c("Number of boys" , "Number of girls"), row.names = TRUE, booktabs=TRUE,linesep="",caption="Number of kids in each cluster(Pulse0: Age 6 - 10)\\label{tbl:tbl21}") %>% kable_styling(latex_options=c("HOLD_position"))
+
+
+```
+
+
+##### Kml3D
+
+
+```{r echo=FALSE, fig.align='center', fig.height=5, fig.width=9}
+qprojnormp04<-projnorm1[,c(1,4,5,14)]
+#head(qprojnormp04)
+qprojnormp041m<-qprojnormp04 %>% filter(gender == "boy") %>% group_by(ID, agebin) %>%  summarise(pulse0new = mean(pulse0))
+#head(qprojnormp041m)
+qprojnormp042m<-spread(qprojnormp041m, key = agebin, value = pulse0new)
+qprojnormp043m<-data.frame(column_to_rownames(qprojnormp042m, var = "ID"))
+#head(qprojnormp043m)
+
+qprojnormp14<-projnorm1[,c(1,4,5,15)]
+#head(qprojnormp14)
+qprojnormp141m<-qprojnormp14 %>% filter(gender == "boy") %>% group_by(ID, agebin) %>%  summarise(pulse1new = mean(pulse1))
+#head(qprojnormp041m)
+qprojnormp142m<-spread(qprojnormp141m, key = agebin, value = pulse1new)
+qprojnormp143m<-data.frame(column_to_rownames(qprojnormp142m, var = "ID"))
+#head(qprojnormp143m)
+
+qprojnormp54<-projnorm1[,c(1,4,5,16)]
+#head(qprojnormp54)
+qprojnormp541m<-qprojnormp54 %>% filter(gender == "boy") %>% group_by(ID, agebin) %>%  summarise(pulse5new = mean(pulse5))
+#head(qprojnormp041m)
+qprojnormp542m<-spread(qprojnormp541m, key = agebin, value = pulse5new)
+qprojnormp543m<-data.frame(column_to_rownames(qprojnormp542m, var = "ID"))
+#head(qprojnormp143m)
+
+qprojnormp104<-projnorm1[,c(1,4,5,17)]
+#head(qprojnormp54)
+qprojnormp1041m<-qprojnormp104 %>% filter(gender == "boy") %>% group_by(ID, agebin) %>%  summarise(pulse10new = mean(pulse10))
+#head(qprojnormp041m)
+qprojnormp1042m<-spread(qprojnormp1041m, key = agebin, value = pulse10new)
+qprojnormp1043m<-data.frame(column_to_rownames(qprojnormp1042m, var = "ID"))
+#head(qprojnormp143m)
+
+#Combining all pulses into single dataset
+qpm<-cbind(imputation(as.matrix(qprojnormp042m[-1]), method = "trajHotDeck"), imputation(as.matrix(qprojnormp142m[-1]),method = "trajHotDeck"), imputation(as.matrix(qprojnormp542m[-1]),method = "trajHotDeck"),imputation(as.matrix(qprojnormp1042m[-1]),method = "trajHotDeck"))
+
+colnames(qpm)<- c("p06" , "p07", "p08", "p09", "p010", "p011", "p012", "p013", "p014", "p015","p016","p017","p018", "p16" , "p17", "p18", "p19", "p110", "p111", "p112", "p113", "p114", "p115","p116","p117","p118", "p56" , "p57", "p58", "p59", "p510", "p511", "p512", "p513", "p514", "p515","p516","p517","p518", "p106" , "p107", "p108", "p109", "p1010", "p1011", "p1012", "p1013", "p1014", "p1015","p1016","p1017","p1018")
+
+qpmm<- cbind(data.frame(qprojnormp542m[1]), data.frame(qpm))
+
+cldproj1 <- clusterLongData3d(data.frame(qpmm), timeInData = list(p0 = 2:14, p1 = 15:27, p5 = 28:40, p10 = 41:53), time = c(6:18))
+
+```
+
+</font> 
+
+
+##### Clustering results: Boys
+
+<font size="3">
+
+```{r echo=FALSE, fig.align='center', fig.height=3, fig.width=7}
+
+#kml3d(cldproj1, toPlot = "criterion")
+#choice(cldproj1)
+
+kml3d(cldproj1)
+
+qpmm$clusters<-getClusters(cldproj1, 2)
+qpmm$clusters<-as.factor(qpmm$clusters)
+
+par(mar = c(0.5, 0.5, 0.5, 0.5))
+#plot(cldproj1,2,parTraj=parTRAJ(col="clusters"),parMean=parMEAN(type="n"), xlab = "age")
+set.seed(123)
+qpmmm<- sample_n(qpmm, 1500)
+
+
+#Code for Pulse0 for distinct values
+ppm1p0<-data.frame(qpmmm[,c(1,2:14)])
+colnames(ppm1p0)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppm1p0$clusters<-qpmmm$clusters
+ppm1p0$Count <- apply(ppm1p0[,2:14], 1, function(x) length(unique(x)))
+ppm1p00 <- ppm1p0 %>% filter(Count>5)
+ppm1<-ggparcoord(na.omit(data.frame(ppm1p00)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse0")+facet_wrap(~clusters) + scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+
+#Code for Pulse1 for distinct values
+ppm1p1<-data.frame(qpmmm[,c(1,15:27)])
+colnames(ppm1p1)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppm1p1$clusters<-qpmmm$clusters
+ppm1p1$Count <- apply(ppm1p1[,2:14], 1, function(x) length(unique(x)))
+ppm1p11 <- ppm1p1 %>% filter(Count>5)
+ppm2<-ggparcoord(na.omit(data.frame(ppm1p11)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse1")+facet_wrap(~clusters)+ scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppm1p5<-data.frame(qpmmm[,c(1,28:40)])
+colnames(ppm1p5)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppm1p5$clusters<-qpmmm$clusters
+ppm1p5$Count <- apply(ppm1p5[,2:14], 1, function(x) length(unique(x)))
+ppm1p55 <- ppm1p5 %>% filter(Count>5)
+ppm3<-ggparcoord(na.omit(data.frame(ppm1p55)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse5")+facet_wrap(~clusters)+ scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppm1p10<-data.frame(qpmmm[,c(1,41:53)])
+colnames(ppm1p10)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppm1p10$clusters<-qpmmm$clusters
+ppm1p10$Count <- apply(ppm1p10[,2:14], 1, function(x) length(unique(x)))
+ppm1p1010 <- ppm1p10 %>% filter(Count>5)
+ppm4<-ggparcoord(na.omit(data.frame(ppm1p1010)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse10")+facet_wrap(~clusters)+ scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppm1
+ppm2
+ppm3
+ppm4
+
+
+#grid.arrange(ppm1, ppm2)
+#grid.arrange(ppm3, ppm4)
+
+
+```
+
+</font> 
+
+
+```{r, fig.align='center',fig.width=9, fig.height=5}
+#Average
+
+ppm1p0$pulse0<-rowMeans(ppm1p0[c(2:14)])
+
+avgmp0 <- ggplot(data = na.omit(data.frame(ppm1p0)), mapping = aes(x = pulse0, y = ID, color = clusters)) +  geom_point(size=0.5)
+
+ppm1p1$pulse1<-rowMeans(ppm1p1[c(2:14)])
+
+avgmp1 <- ggplot(data = na.omit(data.frame(ppm1p1)), mapping = aes(x = pulse1, y = ID, color = clusters)) +  geom_point(size=0.5)
+
+#avgmp1
+
+ppm1p10$pulse10<-rowMeans(ppm1p10[c(2:14)])
+
+avgmp10<-ggplot(data = na.omit(data.frame(ppm1p10)), mapping = aes(x = pulse10, y = ID, color = clusters)) + geom_point(size=0.5)
+
+#avgmp10
+avgplot <- cbind.data.frame(ppm1p0$ID, ppm1p0$pulse0,as.factor(ppm1p0$clusters),                     ppm1p1$ID, ppm1p1$pulse1,as.factor(ppm1p1$clusters),                     ppm1p10$ID,ppm1p10$pulse10,as.factor(ppm1p10$clusters))
+
+colnames(avgplot) <- c("p0ID", "p0" , "P0cluster", "p1ID", "p1" , "P1cluster" , "p10ID", "p10", "cluster")
+
+avgplot <- avgplot[,c(1,2,5,8,9)]
+
+
+ggplot(data = na.omit(data.frame(avgplot)), mapping = aes(x = p10, y = p0, color = as.factor(cluster))) +  geom_point(size=0.5) + geom_segment(x= -Inf, xend=110, y = 110, yend = 110, colour = "black", size = 0.2,linetype="dashed") + geom_segment(x= 110, xend=110, y = 110, yend = -Inf, colour = "black", size = 0.2,linetype="dashed")+labs(col = "Cluster")
+
+
+```
+
+```{r, fig.align='center',fig.width=9, fig.height=5}
+
+
+grid.arrange(avgmp1,avgmp10, nrow=2)
+
+#ggplot(data = na.omit(data.frame(avgplot)), mapping = aes(x = p10, y = p0, color = as.factor(cluster))) +  geom_point(size=0.5) +  geom_hline(yintercept = 110, linetype="dashed", color = "red")+ geom_vline(xintercept = 110, linetype="dashed", color = "red")+ geom_abline(intercept = 220, slope=-1)
+
+
+#plot(ppm1p10$pulse10~ppm1p0$pulse0, col=c(ppm1p0$clusters,ppm1p10$clusters), ylim = c(0,150), xlim = c(0,150))
+#abline(h=110,v = 110, col="red", lwd=3, lty=2)
+
+#reg<-lm(p0~p10, data = data.frame(avgplot))
+#abline(reg, col="blue")
+
+#abline(220,-1)
+
+```
+
+
+
+##### Clustering results: Girls
+
+<font size="3">
+
+```{r echo=FALSE, fig.align='center', fig.height=5, fig.width=9}
+qprojnormp04<-projnorm1[,c(1,4,5,14)]
+#head(qprojnormp04)
+qprojnormp041g<-qprojnormp04 %>% filter(gender == "girl") %>% group_by(ID, agebin) %>%  summarise(pulse0new = mean(pulse0))
+#head(qprojnormp041m)
+qprojnormp042g<-spread(qprojnormp041g, key = agebin, value = pulse0new)
+qprojnormp043g<-data.frame(column_to_rownames(qprojnormp042g, var = "ID"))
+#head(qprojnormp043m)
+
+qprojnormp14<-projnorm1[,c(1,4,5,15)]
+#head(qprojnormp14)
+qprojnormp141g<-qprojnormp14 %>% filter(gender == "girl") %>% group_by(ID, agebin) %>%  summarise(pulse1new = mean(pulse1))
+#head(qprojnormp041m)
+qprojnormp142g<-spread(qprojnormp141g, key = agebin, value = pulse1new)
+qprojnormp143g<-data.frame(column_to_rownames(qprojnormp142g, var = "ID"))
+#head(qprojnormp143m)
+
+qprojnormp54<-projnorm1[,c(1,4,5,16)]
+#head(qprojnormp54)
+qprojnormp541g<-qprojnormp54 %>% filter(gender == "girl") %>% group_by(ID, agebin) %>%  summarise(pulse5new = mean(pulse5))
+#head(qprojnormp041m)
+qprojnormp542g<-spread(qprojnormp541g, key = agebin, value = pulse5new)
+qprojnormp543g<-data.frame(column_to_rownames(qprojnormp542m, var = "ID"))
+#head(qprojnormp143m)
+
+
+qprojnormp104<-projnorm1[,c(1,4,5,17)]
+#head(qprojnormp54)
+qprojnormp1041g<-qprojnormp104 %>% filter(gender == "girl") %>% group_by(ID, agebin) %>%  summarise(pulse10new = mean(pulse10))
+#head(qprojnormp041m)
+qprojnormp1042g<-spread(qprojnormp1041g, key = agebin, value = pulse10new)
+qprojnormp1043g<-data.frame(column_to_rownames(qprojnormp1042g, var = "ID"))
+#head(qprojnormp143m)
+
+#Combining all pulses into single dataset
+qpg<-cbind(imputation(as.matrix(qprojnormp042g[-1]), method = "trajHotDeck"), imputation(as.matrix(qprojnormp142g[-1]),method = "trajHotDeck"), imputation(as.matrix(qprojnormp542g[-1]),method = "trajHotDeck"),imputation(as.matrix(qprojnormp1042g[-1]),method = "trajHotDeck"))
+
+colnames(qpg)<- c("p06" , "p07", "p08", "p09", "p010", "p011", "p012", "p013", "p014", "p015","p016","p017","p018", "p16" , "p17", "p18", "p19", "p110", "p111", "p112", "p113", "p114", "p115","p116","p117","p118", "p56" , "p57", "p58", "p59", "p510", "p511", "p512", "p513", "p514", "p515","p516","p517","p518", "p106" , "p107", "p108", "p109", "p1010", "p1011", "p1012", "p1013", "p1014", "p1015","p1016","p1017","p1018")
+
+qpgg<- cbind(data.frame(qprojnormp542g[1]), data.frame(qpg))
+
+cldproj2 <- clusterLongData3d(data.frame(qpgg), timeInData = list(p0 = 2:14, p1 = 15:27, p5 = 28:40, p10 = 41:53), time = c(6:18))
+```
+
+
+```{r echo=FALSE, fig.align='center', fig.height=3, fig.width=7}
+#kml3d(cldproj2, toPlot = "criterion")
+kml3d(cldproj2)
+qpgg$clusters<-getClusters(cldproj2, 2)
+qpgg$clusters<-as.factor(qpgg$clusters)
+
+par(mar = c(0.5, 0.5, 0.5, 0.5))
+
+set.seed(1)
+qpggg<- sample_n(qpgg, 1000)
+
+ppg1p0<-data.frame(qpggg[,c(1,2:14)])
+colnames(ppg1p0)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppg1p0$clusters<-qpggg$clusters
+ppg1p0$Count <- apply(ppg1p0[,2:14], 1, function(x) length(unique(x)))
+ppg1p00 <- ppg1p0 %>% filter(Count>5)
+ppg1<-ggparcoord(na.omit(data.frame(ppg1p00)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse0") + facet_wrap(~clusters) + scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppg1p1<-data.frame(qpggg[,c(1,15:27)])
+colnames(ppg1p1)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppg1p1$clusters<-qpggg$clusters
+ppg1p1$Count <- apply(ppg1p1[,2:14], 1, function(x) length(unique(x)))
+ppg1p11 <- ppg1p1 %>% filter(Count>5)
+ppg2<-ggparcoord(na.omit(data.frame(ppg1p11)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse1")+ facet_wrap(~clusters)+ scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+
+ppg1p5<-data.frame(qpggg[,c(1,28:40)])
+colnames(ppg1p5)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppg1p5$clusters<-qpggg$clusters
+ppg1p5$Count <- apply(ppg1p5[,2:14], 1, function(x) length(unique(x)))
+ppg1p55 <- ppg1p5 %>% filter(Count>5)
+ppg3<-ggparcoord(na.omit(data.frame(ppg1p55)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse5")+ facet_wrap(~clusters) + scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppg1p10<-data.frame(qpggg[,c(1,41:53)])
+colnames(ppg1p10)<-c("ID","6" , "7", "8", "9", "10", "11", "12", "13", "14", "15","16","17","18")
+ppg1p10$clusters<-qpggg$clusters
+ppg1p10$Count <- apply(ppg1p10[,2:14], 1, function(x) length(unique(x)))
+ppg1p1010 <- ppg1p10 %>% filter(Count>5)
+ppg4<-ggparcoord(na.omit(data.frame(ppg1p1010)), columns=2:14, scale = "globalminmax",groupColumn = "clusters")+xlab("Age") + ylab("Pulse10")+ facet_wrap(~clusters) + scale_y_continuous(breaks = seq(80, 180, 20), limits = c(80, 180))
+
+ppg1
+ppg2
+ppg3
+ppg4
+
+#grid.arrange(ppg1, ppg2)
+#grid.arrange(ppg3, ppg4)
+
+
+```
+
+
+```{r,fig.align='center',fig.width=9, fig.height=5}
+#Average
+
+ppg1p0$pulse0<-rowMeans(ppg1p0[c(2:14)])
+avggp0<-ggplot(data = na.omit(data.frame(ppg1p0)), mapping = aes(x = pulse1, y = ID, color = clusters)) + geom_point(size=0.9)
+
+
+ppg1p1$pulse1<-rowMeans(ppg1p1[c(2:14)])
+avggp1<-ggplot(data = na.omit(data.frame(ppg1p1)), mapping = aes(x = pulse1, y = ID, color = clusters)) + geom_point(size=0.9)
+#avggp1
+
+ppg1p10$pulse10<-rowMeans(ppg1p10[c(2:14)])
+avggp10<-ggplot(data = na.omit(data.frame(ppg1p10)), mapping = aes(x = pulse10, y = ID, color = clusters)) + geom_point(size=0.9)
+#avggp10
+
+avgplotf <- cbind.data.frame(ppg1p0$ID, ppg1p0$pulse0,ppg1p0$clusters,                     ppg1p1$ID, ppg1p1$pulse1,ppg1p1$clusters,                 ppg1p10$ID,ppg1p10$pulse10,ppg1p10$clusters)
+
+colnames(avgplotf) <- c("p0ID", "p0" , "P0cluster", "p1ID", "p1" , "P1cluster" , "p10ID", "p10", "cluster")
+
+avgplotf <- avgplotf[,c(1,2,5,8,9)]
+
+
+ggplot(data = na.omit(data.frame(avgplotf)), mapping = aes(x = p10, y = p0, color = as.character(as.factor(cluster)))) +  geom_point(size=0.5) + geom_segment(x= -Inf, xend=110, y = 110, yend = 110, colour = "black", size = 0.2,linetype="dashed") + geom_segment(x= 110, xend=110, y = 110, yend = -Inf, colour = "black", size = 0.2,linetype="dashed")+labs(col = "Cluster")
+
+```
+
+
+
+```{r,fig.align='center',fig.width=9, fig.height=5}
+grid.arrange(avggp1,avggp10, nrow=2)
+
+```
+
