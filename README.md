@@ -13,4 +13,4 @@ Note:
 
 Please change the dataset name to the appropriate path in the R file, to be able to run the codes successfully. (line 38 in Exploratory analysis and line 40 of Clustering_final)
 
-The folder named “Codes” contain the R codes to be able to generate the html outputs, and the folder named “Final report” contains the final report to be generated in pdf format. 
+The folder named "Codes"� contain the R codes to be able to generate the html outputs, and the folder named "Final report"� contains the final report to be generated in pdf format. 
